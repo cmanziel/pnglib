@@ -9,7 +9,7 @@
 
 #define CHUNK 50000
 
-int def(unsigned char* in, unsigned char* out, size_t size, size_t& out_size);
+int def(unsigned char* in, unsigned char** out, size_t size, size_t& out_size);
 
 int inf(unsigned char* in, unsigned char* out, size_t size, size_t& out_size);
 

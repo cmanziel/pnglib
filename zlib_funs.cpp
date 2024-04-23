@@ -9,7 +9,7 @@
 #  define SET_BINARY_MODE(file)
 #endif
 
-int def(unsigned char* in, unsigned char* out, size_t size, size_t& out_size)
+int def(unsigned char* in, unsigned char** out, size_t pixel_data_size, size_t& out_size)
 {
     int ret, flush;
     z_stream strm;
@@ -18,27 +18,33 @@ int def(unsigned char* in, unsigned char* out, size_t size, size_t& out_size)
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
+
     ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
     if (ret != Z_OK)
         return ret;
 
-    strm.avail_in = size; //bbl
+    uLong compressed_size = deflateBound(&strm, pixel_data_size);
+    out_size = compressed_size;
+
+    *out = (unsigned char*)malloc(compressed_size);
+
+    strm.avail_in = pixel_data_size;
     strm.next_in = in;
 
     flush = Z_FINISH;
 
-    strm.avail_out = size;
-    strm.next_out = out;
+    strm.avail_out = compressed_size;
+    strm.next_out = *out;
 
     ret = deflate(&strm, flush);
     assert(ret != Z_STREAM_ERROR);
 
-    out_size = size - strm.avail_out;
     assert(strm.avail_in == 0);
 
-    (void)deflateEnd;
+    (void)deflateEnd(&strm);
     return Z_OK;
 }
+
 
 
 /* Decompress from file source to file dest until stream ends or EOF.
