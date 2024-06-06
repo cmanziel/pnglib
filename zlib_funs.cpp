@@ -9,7 +9,7 @@
 #  define SET_BINARY_MODE(file)
 #endif
 
-int def(unsigned char* in, unsigned char** out, size_t pixel_data_size, size_t& out_size)
+int def(unsigned char* in, unsigned char* out, uLong pixel_data_size, uLong& out_size)
 {
     int ret, flush;
     z_stream strm;
@@ -26,7 +26,7 @@ int def(unsigned char* in, unsigned char** out, size_t pixel_data_size, size_t& 
     uLong compressed_size = deflateBound(&strm, pixel_data_size);
     out_size = compressed_size;
 
-    *out = (unsigned char*)malloc(compressed_size);
+    out = (unsigned char*)malloc(compressed_size);
 
     strm.avail_in = pixel_data_size;
     strm.next_in = in;
@@ -34,7 +34,7 @@ int def(unsigned char* in, unsigned char** out, size_t pixel_data_size, size_t& 
     flush = Z_FINISH;
 
     strm.avail_out = compressed_size;
-    strm.next_out = *out;
+    strm.next_out = out;
 
     ret = deflate(&strm, flush);
     assert(ret != Z_STREAM_ERROR);

@@ -59,37 +59,48 @@
 //}
 
 // return only the output of def without cmf, flg and adler32
-unsigned char* comp(unsigned char* in, uLong pixel_data_size, size_t& z_size) {
+unsigned char* comp(unsigned char* in, uLong pixel_data_size, uLong& z_size) {
 
     //unsigned char def_out[CHUNK];
+    int ret;
 
     // in the function def, def_out points to the memory allocated with the size of the value return by deflateBound()
-    unsigned char* def_out = NULL;
+    unsigned char* zlib_out = NULL;
 
-    size_t out_size = 0;
+    // if the pixel_data_size is less than a chunk compress it in one go with zlib's compress() function
+    //if (pixel_data_size < CHUNK)
+    //{
+    //    z_size = compressBound(pixel_data_size);
+    //    zlib_out = (unsigned char*)malloc(z_size);
 
-    // set out_size to the size returned by deflateBound
-    int ret = def(in, &def_out, pixel_data_size, out_size);
+    //    ret = compress(zlib_out, &z_size, in, pixel_data_size);
+    //}
+    //else
+    //{
+    //    // set z_size to the size returned by deflateBound
+    //    // def takes care of allocation for zlib_out, based on the size returned by deflateBound called inside def
+    //    ret = def(in, zlib_out, pixel_data_size, z_size);
+
+    //    if (zlib_out == NULL) {
+    //        printf("memory not allocated");
+    //        return zlib_out;
+    //    }
+    //}
+
+    //if (ret != Z_OK) {
+    //    printf("error in compression\n");
+    //    return NULL;
+    //}
+
+    z_size = compressBound(pixel_data_size);
+    zlib_out = (unsigned char*)malloc(z_size);
+    
+    ret = compress(zlib_out, &z_size, in, pixel_data_size);
 
     if (ret != Z_OK) {
         printf("error in compression\n");
         return NULL;
     }
-
-    z_size = out_size;
-
-    unsigned char* zlib_out = (unsigned char*)malloc(z_size);
-
-    if (zlib_out == NULL) {
-        printf("memory not allocated");
-        return zlib_out;
-    }
-
-    for (int i = 0; i < out_size; i++) {
-        zlib_out[i] = def_out[i];
-    }
-
-    free(def_out);
 
     return zlib_out;
 }
