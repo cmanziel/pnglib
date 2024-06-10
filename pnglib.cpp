@@ -245,7 +245,7 @@ unsigned char* decompress_image(FILE* image)
 			compressed_data = block;
 		else if (compressed_data == NULL) // if block is null and also compressed data is null it means the first allocation failed
 		{
-			printf("can't get data from IDAT chunks\n");
+			printf("error allocating new chunk of data\n");
 			return NULL;
 		}
 

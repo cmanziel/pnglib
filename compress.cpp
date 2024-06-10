@@ -67,31 +67,6 @@ unsigned char* comp(unsigned char* in, uLong pixel_data_size, uLong& z_size) {
     // in the function def, def_out points to the memory allocated with the size of the value return by deflateBound()
     unsigned char* zlib_out = NULL;
 
-    // if the pixel_data_size is less than a chunk compress it in one go with zlib's compress() function
-    //if (pixel_data_size < CHUNK)
-    //{
-    //    z_size = compressBound(pixel_data_size);
-    //    zlib_out = (unsigned char*)malloc(z_size);
-
-    //    ret = compress(zlib_out, &z_size, in, pixel_data_size);
-    //}
-    //else
-    //{
-    //    // set z_size to the size returned by deflateBound
-    //    // def takes care of allocation for zlib_out, based on the size returned by deflateBound called inside def
-    //    ret = def(in, zlib_out, pixel_data_size, z_size);
-
-    //    if (zlib_out == NULL) {
-    //        printf("memory not allocated");
-    //        return zlib_out;
-    //    }
-    //}
-
-    //if (ret != Z_OK) {
-    //    printf("error in compression\n");
-    //    return NULL;
-    //}
-
     z_size = compressBound(pixel_data_size);
     zlib_out = (unsigned char*)malloc(z_size);
     
