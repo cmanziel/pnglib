@@ -10,26 +10,9 @@
 	* modify def function to be able to compress data whcih size is greater than CHUNK
 */
 
-#define CHANNELS_PER_PIXEL 3
-
-// TODO: move the fwrites in the main loop and free the chunks in the main loop
-
-typedef struct {
-	uint32_t c_length;
-	unsigned char c_type[4];
-	unsigned char* c_data;
-	uint32_t checksum;
-} chunk;
-
-void set_type(unsigned char* chunk_type, const char* type_name);
-void set_IHDR(FILE* image, chunk* IHDR, uint32_t widht, uint32_t height);
-void set_IDAT(FILE* image, chunk* IDAT, unsigned char* pixel_data, uint32_t width, uint32_t height);
-void set_IEND(FILE* image, chunk* IEND);
-
 void make_png(FILE* image, unsigned char* data, uint32_t width, uint32_t height, const char* path)
 {
 	// PNG signature for every non corrupted png file
-
 	unsigned char signature[] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
 
 	fwrite(signature, 1, sizeof(signature), image);
@@ -45,6 +28,7 @@ void make_png(FILE* image, unsigned char* data, uint32_t width, uint32_t height,
 		return;
 	}
 
+	// set every chunk's field depending on its type and the write it to the image file
 	set_IHDR(image, IHDR, width, height);
 	set_IDAT(image, IDAT, data, width, height);
 	set_IEND(image, IEND);
@@ -142,9 +126,11 @@ void set_IHDR(FILE* image, chunk* IHDR, uint32_t width, uint32_t height)
 void set_IDAT(FILE* image, chunk* IDAT, unsigned char* pixel_data, uint32_t width, uint32_t height)
 {
 	// allocate the total number of pixels, with compression the data written to the file is smaller
-	size_t zlib_size = 0;
+	uLong zlib_size = 0;
 
-	unsigned char* zlib_data = comp(pixel_data, (width * CHANNELS_PER_PIXEL + 1) * height, zlib_size);
+	uLong pixel_data_size = (width * CHANNELS_PER_PIXEL + 1) * height;
+
+	unsigned char* zlib_data = comp(pixel_data, pixel_data_size, zlib_size);
 
 	IDAT->c_data = zlib_data;
 	IDAT->c_length = zlib_size;
@@ -158,7 +144,7 @@ void set_IDAT(FILE* image, chunk* IDAT, unsigned char* pixel_data, uint32_t widt
 	unsigned char* checksum_data = (unsigned char*)malloc(IDAT->c_length + sizeof(IDAT->c_type));
 
 	if (checksum_data == NULL) {
-		printf("checksum dat not allocated");
+		printf("checksum data not allocated");
 		return;
 	}
 
