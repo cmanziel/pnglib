@@ -10,6 +10,10 @@
 
 #pragma warning (disable : 4996)
 
+#define UNCOMPRESSED_SIZE_OVERHEAD 0
+
+unsigned int IDAT_num = 0;
+
 uInt image_get_width(FILE* image)
 {
 	uInt width;
@@ -48,11 +52,13 @@ uLong image_get_size(FILE* image)
 // return index in the image data based on pixel coordinates: image data is made of scanlines of pixel data with a filter method byte at the beginning
 uLong pixel_coords_to_index(FILE* image, unsigned int x, unsigned int y)
 {
-	return (y + 1) + y * (image_get_width(image) * CHANNELS_PER_PIXEL) + (x * CHANNELS_PER_PIXEL);
+	return (y + 1) + y * (image_get_width(image) * CHANNELS_PER_PIXEL) + (x * CHANNELS_PER_PIXEL) + UNCOMPRESSED_SIZE_OVERHEAD;
 }
 
 unsigned int search_IDAT_start(FILE* image)
 {
+	// search for IDATs, iterate through file till EOF and return the number of IDAT chunks found
+
 	const char* to_find = "IDAT\0";
 	char IDAT_sig[5];
 	unsigned int byte_num = 0;
@@ -64,7 +70,7 @@ unsigned int search_IDAT_start(FILE* image)
 
 	IDAT_sig[4] = '\0';
 
-	while (strcmp(to_find, IDAT_sig) != 0)
+	while (strcmp(to_find, IDAT_sig) != 0 && !feof(image))
 	{
 		byte_num++;
 
@@ -78,6 +84,84 @@ unsigned int search_IDAT_start(FILE* image)
 	}
 
 	return byte_num;
+}
+
+IDAT* search_IDATs(FILE* image)
+{
+	IDAT* IDATs = (IDAT*)(malloc(sizeof(IDAT) * 50));
+
+	if (IDATs == NULL)
+	{
+		printf("memory for IDAT chunks not allocated\n");
+		return NULL;
+	}
+
+	const char* signature = "IDAT\0";
+	char IDAT_sig[5];
+	uLong byte_num = 0;
+	unsigned int chunk_num = 0;
+
+	// reset file pointer at the start in case it was previously moved by calls like fread
+	fseek(image, 0, SEEK_SET);
+
+	while (!feof(image) && strcmp("IEND\0", IDAT_sig) != 0)
+	{
+		//cicle of freads until "IDAT" is found
+		fread(IDAT_sig, sizeof(unsigned char), 4, image);
+
+		IDAT_sig[4] = '\0';
+
+		if (strcmp(signature, IDAT_sig) == 0)
+		{
+			IDAT chunk;
+
+			chunk.location = byte_num;
+
+			// chunk's size field is four bytes before the signature so go back 8 bytes because the signature was just read
+			fseek(image, -8, SEEK_CUR);
+			fread(&chunk.size, sizeof(unsigned char), 4, image);
+
+			convert_endianness(&chunk.size);
+
+			// now pointer is again at signature, skip its four bytes so that pointer is at the start of the data field
+			fseek(image, 4, SEEK_CUR);
+			// allicate size number of bytes
+			chunk.data = (unsigned char*)malloc(chunk.size);
+
+			if (chunk.data == NULL)
+			{
+				printf("error allocating IDAT data buffer");
+				return NULL;
+			}
+
+			int read = fread(chunk.data, sizeof(unsigned char), chunk.size, image);
+
+			if (read != chunk.size)
+			{
+				printf("IDAT chunk not read completely\n");
+				return NULL;
+			}
+
+			IDATs[chunk_num] = chunk;
+			chunk_num++;
+
+			// when the signature is found then the number of bytes after it are chunk.size + 4 for the signature before + 4 for the CRC
+			byte_num += chunk.size + 4 + 4;
+
+			// go over CRC bytes
+			fseek(image, 4, SEEK_CUR);
+		}
+		else // if signature wasn't found advance by one byte
+		{
+			byte_num++;
+			// go back 3 bytes from the current pointer position to read bytes one after the other
+			fseek(image, -3, SEEK_CUR);
+		}
+	}
+
+	IDAT_num = chunk_num;
+
+	return IDATs;
 }
 
 uLong image_get_IDAT_size(FILE* image)
@@ -127,7 +211,6 @@ unsigned char* image_get_IDAT_data(FILE* image)
 	return idat_data;
 }
 
-
 FILE* create_image(unsigned char* data, const char* path, int width, int height)
 {
 	FILE* image = fopen(path, "wb");
@@ -145,24 +228,39 @@ unsigned char* decompress_image(FILE* image)
 {
 	uLong pixel_data_size = image_get_size(image);
 
-	uLong idat_size = image_get_IDAT_size(image);
+	IDAT* idat_chunks = search_IDATs(image);
 
-	unsigned char* idat_data = image_get_IDAT_data(image);
+	uLong compressed_data_size = 0;
+	unsigned char* compressed_data = NULL;
 
-	//// get idat data, send it to the decomp function
-	//unsigned char* idat_data = (unsigned char*)malloc(idat_size);
+	// concatenate all idats data, IDAT_num is a global variable set in search_IDATs()
+	for (int i = 0; i < IDAT_num; i++)
+	{
+		IDAT chunk = idat_chunks[i];
 
-	//if (idat_data == NULL)
-	//{
-	//	printf("decompressed data buffer not allocated\n");
-	//	return NULL;
-	//}
+		unsigned char* block = (unsigned char*)realloc(compressed_data, compressed_data_size + chunk.size);
 
-	//fread(idat_data, sizeof(unsigned char), idat_size, image);
+		// if the new block of memory was allocated successfully then make compressed_data point to block in case the new block of memory was moved for reallocation
+		if (block != NULL)
+			compressed_data = block;
+		else if (compressed_data == NULL) // if block is null and also compressed data is null it means the first allocation failed
+		{
+			printf("can't get data from IDAT chunks\n");
+			return NULL;
+		}
 
-	unsigned char* decomp_data = decomp(idat_data, pixel_data_size, idat_size);
+		for (int j = 0; j < chunk.size; j++)
+		{
+			compressed_data[compressed_data_size + j] = chunk.data[j];
+		}
 
-	free(idat_data);
+		compressed_data_size += chunk.size;
+	}
+
+ 	unsigned char* decomp_data = decomp(compressed_data, pixel_data_size, compressed_data_size);
+
+	free(idat_chunks);
+	free(compressed_data);
 
 	return decomp_data;
 }

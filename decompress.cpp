@@ -23,14 +23,18 @@ unsigned char* decomp(unsigned char* in, uLong pixel_data_size, uLong def_size)
 			printf("not enough memory\n");
 		break;
 		case Z_BUF_ERROR:
+		{
 			printf("output buffer not big enough\n");
+			// return the uncompressed buffer filled until this point
+			return uncomp_data;
+		}
 		break;
 		case Z_DATA_ERROR:
 			printf("incorrect input\n");
 		break;
 		}
 
-		return NULL;
+		uncomp_data = NULL;
 	}
 
 	return uncomp_data;

@@ -26,6 +26,12 @@ typedef struct {
 	chunk* IEND;
 } png_image;
 
+typedef struct {
+	uLong size;
+	uLong location; // byte number for the start of "IDAT" chunk signature
+	unsigned char* data;
+} IDAT;
+
 void set_type(unsigned char* chunk_type, const char* type_name);
 void set_IHDR(FILE* image, chunk* IHDR, uint32_t widht, uint32_t height);
 void set_IDAT(FILE* image, chunk* IDAT, unsigned char* pixel_data, uint32_t width, uint32_t height);

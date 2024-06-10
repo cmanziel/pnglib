@@ -13,6 +13,8 @@ uLong image_get_size(FILE* image);
 
 unsigned int search_IDAT_start(FILE* image);
 
+IDAT* search_IDATs(FILE* image);
+
 uLong pixel_coords_to_index(FILE* image, unsigned int x, unsigned int y);
 
 // return the size
