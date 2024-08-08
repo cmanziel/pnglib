@@ -6,6 +6,9 @@
 FILE* create_image(unsigned char* data, const char* path, int width, int height);
 unsigned char* decompress_image(FILE* image);
 
+// concatenate the uncompressed image data that still contains the scanline byte filter at the start of every scanline
+unsigned char* concatenate_filtered_data(unsigned char* filtered_data, unsigned int width, unsigned int height, uint8_t num_of_channels);
+
 uInt image_get_width(FILE* image);
 uInt image_get_height(FILE* image);
 
