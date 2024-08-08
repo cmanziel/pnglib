@@ -3,15 +3,15 @@
 #include "pch.h"
 #include "decompress.h"
 
-unsigned char* decomp(unsigned char* in, uLong pixel_data_size, uLong def_size)
+unsigned char* decomp(unsigned char* in, uLong* pixel_data_size, uLong def_size)
 {
 	// call uncompress function
 
 	int ret;
 
-	unsigned char* uncomp_data = (unsigned char*)malloc(pixel_data_size);
+	unsigned char* uncomp_data = (unsigned char*)malloc(*pixel_data_size);
 
-	ret = uncompress(uncomp_data, &pixel_data_size, in, def_size);
+	ret = uncompress(uncomp_data, pixel_data_size, in, def_size);
 
 	if (ret != Z_OK)
 	{
@@ -26,7 +26,7 @@ unsigned char* decomp(unsigned char* in, uLong pixel_data_size, uLong def_size)
 		{
 			printf("output buffer not big enough\n");
 			// return the uncompressed buffer filled until this point
-			return uncomp_data;
+			//return uncomp_data;
 		}
 		break;
 		case Z_DATA_ERROR:

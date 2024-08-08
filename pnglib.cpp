@@ -257,7 +257,7 @@ unsigned char* decompress_image(FILE* image)
 		compressed_data_size += chunk.size;
 	}
 
- 	unsigned char* decomp_data = decomp(compressed_data, pixel_data_size, compressed_data_size);
+ 	unsigned char* decomp_data = decomp(compressed_data, &pixel_data_size, compressed_data_size);
 
 	free(idat_chunks);
 	free(compressed_data);
@@ -265,6 +265,34 @@ unsigned char* decompress_image(FILE* image)
 	return decomp_data;
 }
 
+// image_size: number of width * height pixels * number of channels * sizeof(unsigned char)
+unsigned char* concatenate_filtered_data(unsigned char* filtered_data, unsigned int width, unsigned int height, uint8_t num_of_channels)
+{
+	unsigned int unfilered_size = width * height * num_of_channels * sizeof(unsigned char);
+	unsigned char* raw_data = (unsigned char*)malloc(unfilered_size);
+
+	if (raw_data == NULL)
+	{
+		printf("not enough memory\n");
+		return NULL;
+	}
+
+	unsigned int raw_index = 0;
+
+	unsigned int i = 0;
+	while (i < width * height * num_of_channels + height) // loop through all the filtered data
+	{
+		if (i % (width * num_of_channels + 1) == 0)
+			i++;
+		else 
+		{
+			for (int j = 0; j < num_of_channels; j++)
+				raw_data[raw_index] = filtered_data[i]; raw_index++; i++;
+		}
+	}
+
+	return raw_data;
+}
 
 //uLong image_get_IDAT_size()
 //{
