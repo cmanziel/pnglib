@@ -9,6 +9,10 @@ enum color_types {
 	GREYSCALE, TRUECOLOR = 2, INDEXED_COLOR, GREYSCALE_ALPHA, TRUECOLOR_ALPHA = 6
 };
 
+enum filter_types {
+	NONE, SUB, UP, AVERAGE, PAETH
+};
+
 typedef struct {
 	uint32_t image_width;
 	uint32_t image_height;

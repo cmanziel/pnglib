@@ -4,6 +4,7 @@
 #include "framework.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 #include "make_png.h"
 #include "pnglib.h"
 
@@ -245,13 +246,14 @@ unsigned char* concatenate_filtered_data(unsigned char* filtered_data, unsigned 
 	unsigned int raw_index = 0;
 
 	unsigned int i = 0;
-	while (i < (width * num_of_channels + 1) * height) // loop through all the filtered data
+	while (i < (width * num_of_channels * (bit_depth / 8) + 1) * height) // loop through all the filtered data
 	{
-		if (i % (width * num_of_channels + 1) == 0)
+		if (i % (width * num_of_channels * (bit_depth / 8) + 1) == 0)
 			i++;
 		else
 		{
-			for (int j = 0; j < num_of_channels; j++)
+			// reconstruction can be done here based on the filter type read from the true condition of this if-else
+			for (int j = 0; j < num_of_channels * (bit_depth / 8); j++)
 			{
 				raw_data[raw_index++] = filtered_data[i++];
 			}
@@ -259,6 +261,87 @@ unsigned char* concatenate_filtered_data(unsigned char* filtered_data, unsigned 
 	}
 
 	return raw_data;
+}
+
+//reconstruct scanline by scanline and read each filter byte at the start of them
+void reconstruct_filtered_data(unsigned char* filtered_data, size_t width, size_t height, uint8_t num_of_channels, uint8_t bit_depth)
+{
+	unsigned int scanline_size = width * num_of_channels * (bit_depth / 8) + 1;
+	uint8_t filter_type = 0;
+
+	for (int y = 0; y < height; y++)
+	{
+		// index of the first byte of a scanline: the filter type byte
+		unsigned int scanline_start = y * scanline_size;
+		filter_type = filtered_data[scanline_start];
+
+		// reconstruct the filtered scanline according to its filter_type byte
+		switch (filter_type)
+		{
+		case NONE:
+		break;
+
+		case SUB:
+			// +1 sets the pointer to the start of the pixel_data after the filter type byte
+			reconstruct_sub(filtered_data + scanline_start + 1, scanline_size, num_of_channels, bit_depth);
+		break;
+
+		case UP:
+			reconstruct_up(filtered_data + scanline_start + 1, scanline_size, y, num_of_channels, bit_depth);
+		break;
+
+		case AVERAGE:
+			reconstruct_average(filtered_data + scanline_start + 1, scanline_size, y, num_of_channels, bit_depth);
+		break;
+
+		case PAETH:
+		break;
+		}
+	}
+}
+
+void reconstruct_sub(unsigned char* filtered, unsigned int scanline_size, uint8_t num_of_channels, uint8_t bit_depth)
+{
+	uint8_t a_byte_offset = num_of_channels * bit_depth / 8;
+
+	for (int i = 0; i < scanline_size - 1; i++)
+	{
+		uint8_t a_byte = i - a_byte_offset < 0 ? 0 : filtered[i - a_byte_offset];
+
+		// the unsigned type already performs the modulo 256 on the result of the sum so the value doesn't overflow a byte
+		filtered[i] = filtered[i] + a_byte;
+	}
+}
+
+void reconstruct_up(unsigned char* filtered, unsigned int scanline_size, unsigned int scanline_index, uint8_t num_of_channels, uint8_t bit_depth)
+{
+	// up byte: this byte index - the size of a scanline of pixels
+	int b_byte_offset = scanline_size;
+
+	for (int i = 0; i < scanline_size - 1; i++)
+	{
+		uint8_t b_byte = scanline_index - 1 < 0 ? 0 : filtered[i - b_byte_offset];
+
+		filtered[i] = filtered[i] + b_byte;
+	}
+}
+
+void reconstruct_average(unsigned char* filtered, unsigned int scanline_size, unsigned int scanline_index, uint8_t num_of_channels, uint8_t bit_depth)
+{
+	uint8_t a_byte_offset = num_of_channels * bit_depth / 8;
+	int b_byte_offset = scanline_size;
+
+	for (int i = 0; i < scanline_size - 1; i++)
+	{
+		// average operatioon should be done without overflow for the a_byte + b_byte sum, so declare these two values at least as short
+		short a_byte = i - a_byte_offset < 0 ? 0 : filtered[i - a_byte_offset];
+		short b_byte = scanline_index == 0 ? 0 : filtered[i - b_byte_offset];
+
+		uint8_t average = (a_byte + b_byte) / 2;
+
+		//filtered[i] = filtered[i] + average;
+		filtered[i] = filtered[i] + average;
+	}
 }
 
 //uLong image_get_IDAT_size()

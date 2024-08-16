@@ -21,7 +21,7 @@ typedef struct {
 } chunk;
 
 typedef struct {
-	uLong size;
+	uint32_t size;
 	uLong location; // byte number for the start of "IDAT" chunk signature
 	unsigned char* data;
 } IDAT;
