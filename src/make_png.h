@@ -21,13 +21,7 @@ typedef struct {
 } chunk;
 
 typedef struct {
-	chunk* IHDR;
-	chunk** IDATs; // a png file can have multiple IDATs
-	chunk* IEND;
-} png_image;
-
-typedef struct {
-	uLong size;
+	uint32_t size;
 	uLong location; // byte number for the start of "IDAT" chunk signature
 	unsigned char* data;
 } IDAT;
